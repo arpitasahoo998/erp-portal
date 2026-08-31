@@ -1424,7 +1424,7 @@ def initialize_database():
             admin = User(
                 username='admin',
                 password_hash=generate_password_hash('admin123'),
-                role='admin'
+                role='superadmin'
             )
             db.session.add(admin)
             db.session.commit()
