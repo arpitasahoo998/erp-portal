@@ -1413,7 +1413,26 @@ def manage_dead_stock():
     
     return redirect(url_for('inventory'))
 
-if __name__ == '__main__':
+def initialize_database():
     with app.app_context():
         db.create_all()
+
+        # Create default admin if it does not exist
+        admin = User.query.filter_by(username='admin').first()
+
+        if not admin:
+            admin = User(
+                username='admin',
+                password_hash=generate_password_hash('admin123'),
+                role='admin'
+            )
+            db.session.add(admin)
+            db.session.commit()
+
+
+# Initialize database when the application starts
+initialize_database()
+
+
+if __name__ == '__main__':
     app.run(debug=True, port=1234)
