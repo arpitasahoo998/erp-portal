@@ -1,0 +1,466 @@
+{% extends 'base.html' %}
+{% block title %}Inventory – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h2>Products & Stock</h2>
+        <p>Manage your product catalog and view batch-wise inventory</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('add-product-modal').classList.add('active')">
+        ➕ Add Product
+    </button>
+</div>
+
+<div class="page-body">
+    {% if products %}
+    <div id="bulk-actions-bar"
+        style="display:none; position: sticky; top: 10px; z-index: 100; background: var(--surface); padding: 10px 15px; border-radius: var(--radius); border: 2px solid #e3342f; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);">
+        <form id="bulk-delete-form" method="POST" action="{{ url_for('bulk_delete_products') }}">
+            <div style="display: flex; justify-content: space-between; align-items: center;" id="bulk-items-container">
+                <strong id="bulk-count" style="color: #e3342f;">0 products selected</strong>
+                <button type="button" class="btn btn-danger" onclick="confirmBulkDelete()">🗑️ Delete Selected</button>
+            </div>
+        </form>
+    </div>
+    <div class="product-grid">
+        {% for product in products %}
+        <div class="product-card">
+            <div class="product-card-header">
+                <div style="display:flex; align-items:center; gap: 10px;">
+                    <input type="checkbox" form="bulk-delete-form" name="product_ids" value="{{ product.id }}"
+                        class="bulk-cb" onchange="toggleBulkBtn()">
+                    <h4
+                        style="margin:0; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; max-height: 2.4em;">
+                        {{ product.name }}
+                    </h4>
+                </div>
+                <div class="product-card-actions">
+                    <button class="btn btn-ghost btn-xs edit-product-btn" data-id="{{ product.id }}"
+                        data-name='{{ product.name | tojson | safe }}' data-hsn='{{ product.hsn_code | tojson | safe }}'
+                        data-gst="{{ product.gst_rate or 0 }}"
+                        data-stock="{{ product.display_stock|int }}"
+                        data-batch='{{ (product.batches[-1].batch_no if product.batches else "") | tojson | safe }}'>
+                        ✏️
+                    </button>
+                    <form id="delete-product-{{ product.id }}" method="POST"
+                        action="{{ url_for('delete_product', product_id=product.id) }}" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-xs delete-product-btn"
+                            data-name='{{ product.name | tojson | safe }}'>
+                            🗑️
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="product-card-body">
+                <div class="product-meta">
+                    <span>🏷️ HSN: {{ product.hsn_code or 'N/A' }}</span>
+                    <span>💰 GST: {{ product.gst_rate or 0 }}%</span>
+                    <span>📦 Stock: {{ product.display_stock|int }}</span>
+                    {% if current_user.role == 'superadmin' %}
+                    <br><small class="text-muted">Global Stock: {{ product.total_stock|int }}</small>
+                    <div class="mt-1 pt-1 border-t text-[10px] text-gray-400 flex justify-between">
+                        <span>👤 {{ product.created_by.username if product.created_by else 'Main' }}</span>
+                        <span>🕒 {{ product.created_at.strftime('%d-%m %H:%M') }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if product.batches %}
+                <div class="product-batches mt-2">
+                    <details>
+                        <summary>📦 {{ product.batches|length }} Batch(es)</summary>
+                        <div class="table-wrapper batch-table">
+                            <table class="table table-sm" style="font-size: 0.75rem;">
+                                <thead>
+                                    <tr>
+                                        <th>Batch</th>
+                                        <th>Purchase</th>
+                                        <th>Expiry</th>
+                                        <th>Stock</th>
+                                        <th>Buy ₹</th>
+                                        <th class="text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% set filtered_batches = product.batches if current_user.role == 'superadmin' else product.batches|selectattr('branch_id', 'equalto', current_user.branch_id)|list %}
+                                    {% for batch in filtered_batches if batch.remaining_qty > 0 %}
+                                    <tr class="{% if batch.expiry_date and batch.expiry_date < today %}text-red-600 bg-red-50{% endif %}">
+                                        <td>{{ batch.batch_no or 'PURCHASE' }}</td>
+                                        <td>{{ batch.purchase_date.strftime('%d %b %y') if batch.purchase_date else '–' }}</td>
+                                        <td>
+                                            {% if batch.expiry_date %}
+                                            <span class="{% if batch.expiry_date < today %}font-bold underline{% endif %}">
+                                                {{ batch.expiry_date.strftime('%d %b %y') }}
+                                            </span>
+                                            {% else %}–{% endif %}
+                                        </td>
+                                        <td><strong>{{ batch.remaining_qty }}</strong></td>
+                                        <td>₹{{ "%.2f"|format(batch.purchase_price) }}</td>
+                                        <td class="text-right">
+                                            <div class="flex gap-2 justify-end">
+                                                <button class="btn btn-ghost btn-xs p-0 dead-stock-btn" title="Dead Stock" 
+                                                        data-id="{{ batch.id }}"
+                                                        data-batch="{{ batch.batch_no or 'PURCHASE' }}"
+                                                        data-avail="{{ batch.remaining_qty }}"
+                                                        data-dead="{{ batch.dead_stock_logs|sum(attribute='quantity')|default(0, true) }}">
+                                                    🥀
+                                                </button>
+                                                <button class="btn btn-ghost btn-xs p-0 edit-batch-btn" title="Edit Batch"
+                                                        data-id="{{ batch.id }}"
+                                                        data-batch="{{ batch.batch_no }}"
+                                                        data-qty="{{ batch.remaining_qty }}"
+                                                        data-buy="{{ batch.purchase_price }}"
+                                                        data-sale="{{ batch.selling_price }}"
+                                                        data-expiry="{{ batch.expiry_date.strftime('%Y-%m-%d') if batch.expiry_date else '' }}">
+                                                    ✏️
+                                                </button>
+                                                <form method="POST" action="{{ url_for('delete_batch', batch_id=batch.id) }}" style="display:inline;"
+                                                      onsubmit="return confirm('Delete this batch? Current stock will be lost.')">
+                                                    <button type="submit" class="btn btn-ghost btn-xs p-0 text-red-600" title="Delete">🗑️</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📦</div>
+        <h3>No products yet</h3>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Modal -->
+<div class="modal-overlay" id="add-product-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>➕ Add New Product</h3>
+        </div>
+        <form method="POST" action="{{ url_for('add_product') }}">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label class="text-xs font-bold uppercase text-gray-500">Product Name</label>
+                    <input type="text" name="name" class="form-control" required placeholder="Enter Product Name">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="form-group">
+                        <label class="text-xs font-bold uppercase text-gray-500">HSN Code</label>
+                        <input type="text" name="hsn_code" class="form-control" placeholder="HSN (Optional)">
+                    </div>
+                    <div class="form-group">
+                        <label class="text-xs font-bold uppercase text-gray-500">Default GST Rate (%)</label>
+                        <input type="number" name="gst_rate" class="form-control" value="0" step="0.01">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    <input type="number" name="initial_stock" class="form-control" placeholder="Initial Stock">
+                    <input type="text" name="batch_no" class="form-control" placeholder="Batch No">
+                </div>
+                {% if current_user.role == 'superadmin' %}
+                <div class="form-group mt-3">
+                    <label class="text-xs font-bold uppercase text-gray-500">Assign to Branch</label>
+                    <select name="branch_id" class="form-control">
+                        {% for b in branches %}
+                        <option value="{{ b.id }}">{{ b.name }} ({{ b.city }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer pt-4 flex justify-end gap-2">
+                <button type="button" class="btn btn-ghost"
+                    onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="edit-product-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>✏️ Edit Product</h3>
+        </div>
+        <form id="edit-product-form" method="POST" action="">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label class="text-xs font-bold uppercase text-gray-500">Product Name</label>
+                    <input type="text" name="name" id="edit-product-name" class="form-control" required>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="form-group">
+                        <label class="text-xs font-bold uppercase text-gray-500">HSN Code</label>
+                        <input type="text" name="hsn_code" id="edit-product-hsn" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="text-xs font-bold uppercase text-gray-500">GST Rate (%)</label>
+                        <input type="number" name="gst_rate" id="edit-product-gst" class="form-control" step="0.01"
+                            readonly>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                    <div class="form-group">
+                        <label class="text-xs font-bold uppercase text-gray-500">Override Total Stock</label>
+                        <input type="number" name="force_stock" id="edit-product-stock" class="form-control"
+                            placeholder="0" readonly>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer pt-4 flex justify-end gap-2">
+                <button type="button" class="btn btn-ghost"
+                    onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+<!-- Edit Batch Modal -->
+<div class="modal-overlay" id="edit-batch-modal">
+    <div class="modal" style="max-width: 450px;">
+        <div class="modal-header flex justify-between items-center mb-3">
+            <h3 class="m-0">📦 Edit Batch Details</h3>
+            <button class="btn btn-ghost p-1" onclick="closeEditBatch()">✕</button>
+        </div>
+        <form id="edit-batch-form" method="POST" action="">
+            <div class="modal-body">
+                <div class="form-group mb-3">
+                    <label class="text-xs font-bold uppercase text-gray-500">Batch Number</label>
+                    <input type="text" name="batch_no" id="eb-no" class="form-control" required>
+                </div>
+                <div class="form-group mb-3">
+                    <label class="text-xs font-bold uppercase text-gray-500">Current Stock</label>
+                    <input type="number" name="remaining_qty" id="eb-qty" class="form-control" step="0.01" required>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div class="form-group">
+                        <label class="text-xs font-bold uppercase text-gray-500">Buy Price (₹)</label>
+                        <input type="number" name="purchase_price" id="eb-buy" class="form-control" step="0.01"
+                            required>
+                    </div>
+                    <div class="form-group">
+                        <label class="text-xs font-bold uppercase text-gray-500">Sale Price (₹)</label>
+                        <input type="number" name="selling_price" id="eb-sale" class="form-control" step="0.01">
+                    </div>
+                </div>
+                <div class="form-group mt-3">
+                    <label class="text-xs font-bold uppercase text-gray-500">Expiry Date</label>
+                    <input type="date" name="expiry_date" id="eb-expiry" class="form-control">
+                    <small class="text-muted">Leave blank if no expiry</small>
+                </div>
+            </div>
+            <div class="modal-footer pt-4 flex justify-end gap-2">
+                <button type="button" class="btn btn-ghost" onclick="closeEditBatch()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Batch</button>
+            </div>
+        </form>
+    </div>
+</div>
+<style>
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    .modal {
+        background: white;
+        border-radius: 1rem;
+        width: 100%;
+        max-width: 600px;
+        padding: 2rem;
+    }
+
+    .product-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .product-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Global click listener for Edit and Delete buttons
+    document.addEventListener('click', function (e) {
+        const editBtn = e.target.closest('.edit-product-btn');
+        if (editBtn) {
+            const d = editBtn.dataset;
+            // Parse JSON strings back to plain text
+            const name = JSON.parse(d.name);
+            const hsn = JSON.parse(d.hsn);
+            const batch = JSON.parse(d.batch);
+            openEditProduct(d.id, name, hsn, d.gst, d.stock, batch);
+            return;
+        }
+
+        const delBtn = e.target.closest('.delete-product-btn');
+        if (delBtn) {
+            e.preventDefault();
+            const name = JSON.parse(delBtn.dataset.name);
+            confirmDeleteProduct(delBtn, name);
+        }
+    });
+
+    function openEditProduct(id, name, hsn, gst, stock, batch) {
+        const f = document.getElementById('edit-product-form');
+        f.action = "/products/edit/" + id;
+        document.getElementById('edit-product-name').value = name || "";
+        document.getElementById('edit-product-hsn').value = hsn || "";
+        document.getElementById('edit-product-gst').value = gst || "0";
+        document.getElementById('edit-product-stock').value = stock || "0";
+        document.getElementById('edit-product-modal').classList.add('active');
+    }
+
+    document.querySelectorAll('.edit-batch-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const no = this.dataset.batch;
+            const qty = this.dataset.qty;
+            const buy = this.dataset.buy;
+            const sale = this.dataset.sale;
+            const expiry = this.dataset.expiry;
+
+            const modal = document.getElementById('edit-batch-modal');
+            const form = document.getElementById('edit-batch-form');
+            form.action = `/inventory/batch/update/${id}`;
+
+            document.getElementById('eb-no').value = no;
+            document.getElementById('eb-qty').value = qty;
+            document.getElementById('eb-buy').value = buy;
+            document.getElementById('eb-sale').value = sale || '';
+            document.getElementById('eb-expiry').value = expiry || '';
+
+            modal.classList.add('active');
+        });
+    });
+
+    function closeEditBatch() {
+        document.getElementById('edit-batch-modal').classList.remove('active');
+    }
+
+    function confirmDeleteProduct(btn, name) {
+        Swal.fire({
+            title: 'Delete ' + name + '?',
+            text: "This will remove the product and its inventory forever!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e3342f',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, delete it!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                btn.closest('form').submit();
+            }
+        });
+    }
+
+    function confirmBulkDelete() {
+        const count = document.querySelectorAll('.bulk-cb:checked').length;
+        Swal.fire({
+            title: 'Delete ' + count + ' products?',
+            text: "This action cannot be undone!",
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonColor: '#e3342f',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, delete all!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById('bulk-delete-form').submit();
+            }
+        });
+    }
+
+    function toggleBulkBtn() {
+        const count = document.querySelectorAll('.bulk-cb:checked').length;
+        document.getElementById('bulk-actions-bar').style.display = count > 0 ? 'block' : 'none';
+        document.getElementById('bulk-count').innerText = count + " items selected";
+    }
+    document.querySelectorAll('.dead-stock-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const batch = this.dataset.batch;
+            const avail = this.dataset.avail;
+            const dead = this.dataset.dead;
+
+            document.getElementById('dead-batch-id').value = id;
+            document.getElementById('dead-batch-label').innerText = batch;
+            document.getElementById('dead-avail-label').innerText = avail;
+            document.getElementById('dead-total-label').innerText = dead || '0';
+            document.getElementById('dead-qty').max = avail;
+            document.getElementById('dead-qty').value = "";
+            document.getElementById('dead-stock-modal').classList.add('active');
+        });
+    });
+</script>
+
+<!-- Dead Stock Modal -->
+<div class="modal-overlay" id="dead-stock-modal">
+    <div class="modal" style="max-width: 450px;">
+        <div class="modal-header">
+            <h3>🥀 Dead Stock Management</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('active')">✕</button>
+        </div>
+        <form method="POST" action="{{ url_for('manage_dead_stock') }}">
+            <input type="hidden" name="batch_id" id="dead-batch-id">
+            <div class="modal-body space-y-4">
+                <p class="text-xs text-muted">Remove stock from <b>Batch <span id="dead-batch-label"></span></b> without a sale record.</p>
+                <div style="display:flex; gap:12px; margin-bottom:10px;">
+                    <div style="flex:1; padding:10px; background:rgba(227,52,47,0.08); border-radius:8px; text-align:center;">
+                        <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Total Dead Stock</div>
+                        <div style="font-size:1.2rem; font-weight:700; color:#e3342f;"><span id="dead-total-label">0</span></div>
+                    </div>
+                    <div style="flex:1; padding:10px; background:rgba(56,161,105,0.08); border-radius:8px; text-align:center;">
+                        <div style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); margin-bottom:4px;">Available Stock</div>
+                        <div style="font-size:1.2rem; font-weight:700; color:#38a169;"><span id="dead-avail-label"></span></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Quantity to Remove</label>
+                    <input type="number" name="quantity" id="dead-qty" class="form-control" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Reason</label>
+                    <select name="reason" class="form-control">
+                        <option value="Spoiled / Expired">Spoiled / Expired</option>
+                        <option value="Returned to Supplier">Returned to Supplier</option>
+                        <option value="Damaged in Storage">Damaged in Storage</option>
+                        <option value="Sample / Gift">Sample / Gift</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-danger">Confirm Deduction</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

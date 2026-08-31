@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}User Manual – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📖 User Manual</h2>
+    <p>Guide to using the Spice Bites Inventory & Billing Portal</p>
+</div>
+
+<div class="page-body">
+    <div class="space-y-8">
+        <!-- ROLE: STAFF USERS -->
+        <section>
+            <h3 class="text-indigo-600 border-b pb-2 mb-4 uppercase text-xs font-bold tracking-widest">👤 Staff
+                Operations Guide</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Billing -->
+                <div class="card p-6 border-l-4 border-indigo-500">
+                    <h4 class="flex items-center gap-2 mb-3 font-bold"><span>🧾</span> Daily Billing</h4>
+                    <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                        <li><strong>Customer Search:</strong> Type a name to auto-fill address/phone for regular buyers.
+                        </li>
+                        <li><strong>Batch Selection:</strong> System uses FIFO to pick the oldest stock automatically.
+                        </li>
+                        <li><strong>Calculations:</strong> Discounts and GST are calculated in real-time.</li>
+                        <li><strong>PDF Invoices:</strong> Professional A4 prints with branch-specific details and
+                            digital stamps.</li>
+                    </ul>
+                </div>
+                <!-- Inventory -->
+                <div class="card p-6 border-l-4 border-indigo-500">
+                    <h4 class="flex items-center gap-2 mb-3 font-bold"><span>📦</span> Inventory & Stock</h4>
+                    <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                        <li><strong>Stock Status:</strong> Real-time view of products available in your branch.</li>
+                        <li><strong>Dead Stock:</strong> Use the 💀 icon to remove damaged/expired items and log the
+                            reason.</li>
+                        <li><strong>Expiry Alerts:</strong> Monitor batch-wise expiry dates in the inventory list.</li>
+                    </ul>
+                </div>
+                <!-- Payments -->
+                <div class="card p-6 border-l-4 border-indigo-500">
+                    <h4 class="flex items-center gap-2 mb-3 font-bold"><span>💰</span> Payment Collection</h4>
+                    <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                        <li><strong>Tracking:</strong> Search for pending bills in the Payments module.</li>
+                        <li><strong>Installments:</strong> Record partial payments with Mode (Cash/Bank/UPI/Cheque).
+                        </li>
+                        <li><strong>Audit Trail:</strong> Your name is automatically recorded against every collection.
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        <br>
+        <!-- ROLE: SUPERADMINS -->
+        <section>
+            <h3 class="text-indigo-600 border-b pb-2 mb-4 uppercase text-xs font-bold tracking-widest">👑 Superadmin
+                Administrative Controls</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Branch Mgmt -->
+                <div class="card p-6 border-l-4 border-emerald-500">
+                    <h4 class="flex items-center gap-2 mb-3 font-bold"><span>🏢</span> Branch Profiling</h4>
+                    <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                        <li><strong>Compliance Setup:</strong> Configure GSTIN, FSSAI, PAN, and Address for each branch.
+                        </li>
+                        <li><strong>Identity:</strong> These details dynamically populate the header of all branch
+                            invoices.</li>
+                    </ul>
+                </div>
+                <!-- Analytics -->
+                <div class="card p-6 border-l-4 border-emerald-500">
+                    <h4 class="flex items-center gap-2 mb-3 font-bold"><span>📊</span> Monthly Analytics</h4>
+                    <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                        <li><strong>Branch Activity:</strong> View consolidated monthly collection reports for all
+                            locations.</li>
+                        <li><strong>Staff Performance:</strong> Compare total money collected by different staff
+                            members.</li>
+                        <li><strong>Historical Data:</strong> Use filters to jump between months and years for trend
+                            analysis.</li>
+                    </ul>
+                </div>
+                <!-- User Mgmt -->
+                <div class="card p-6 border-l-4 border-emerald-500">
+                    <h4 class="flex items-center gap-2 mb-3 font-bold"><span>👥</span> User & Security</h4>
+                    <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                        <li><strong>RBAC:</strong> Create users and assign specific module permissions (Billing,
+                            Finance, etc.).</li>
+                        <li><strong>Global Access:</strong> Superadmins see all data; staff are isolated to their own
+                            branch.</li>
+                        <li><strong>Data Reset:</strong> Clean up installment history or override totals if entries are
+                            wrong.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Contact Support -->
+    <div class="mt-12 text-center p-8 bg-surface border rounded-2xl">
+        <h4 class="mb-2">Need Technical Support?</h4>
+        <p class="text-sm text-muted mb-4">For database connectivity issues or server maintenance, contact your
+            technical administrator.</p>
+        <div style="font-size: 0.7rem; opacity: 0.5;">Spice Bites Portal v3.0 - 2026</div>
+    </div>
+</div>
+{% endblock %}

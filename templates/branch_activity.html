@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Branch Activity Report – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h2>📊 Branch Activity Report</h2>
+        <p>Monthly collection summary across all locations</p>
+    </div>
+    <div class="flex gap-2">
+        <form action="{{ url_for('branch_activity') }}" method="GET" class="flex gap-2 items-center">
+            <select name="month" class="form-control" onchange="this.form.submit()">
+                {% for m in range(1, 13) %}
+                {% if year < now.year or m <=now.month %} <option value="{{ m }}" {{ 'selected' if m==month else '' }}>
+                    {{ (now.replace(day=1, month=m)).strftime('%B') }}
+                    </option>
+                    {% endif %}
+                    {% endfor %}
+            </select>
+            <select name="year" class="form-control" onchange="this.form.submit()">
+                {% for y in range(now.year-2, now.year+1) %}
+                <option value="{{ y }}" {{ 'selected' if y==year else '' }}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+    <!-- Summary Stats -->
+    <div class="card bg-indigo-600 text-white">
+        <div class="card-body">
+            <div class="flex items-center gap-4">
+                <div class="text-3xl">💰</div>
+                <div>
+                    <h4 class="text-indigo-100 uppercase text-xs font-bold tracking-wider">Total Collected</h4>
+                    <div class="text-2xl font-bold">₹{{ "{:,.2f}".format(collections | map(attribute='total_cash') |
+                        sum) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-emerald-600 text-white" style="display: none;">
+        <div class="card-body">
+            <div class="flex items-center gap-4">
+                <div class="text-3xl">🏢</div>
+                <div>
+                    <h4 class="text-emerald-100 uppercase text-xs font-bold tracking-wider">Active Branches</h4>
+                    <div class="text-2xl font-bold">{{ collections | length }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card bg-amber-500 text-white">
+        <div class="card-body">
+            <div class="flex items-center gap-4">
+                <div class="text-3xl">🧾</div>
+                <div>
+                    <h4 class="text-amber-100 uppercase text-xs font-bold tracking-wider">Total Transactions</h4>
+                    <div class="text-2xl font-bold">{{ collections | map(attribute='txn_count') | sum }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <!-- Branch-wise Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3>🏢 Branch Performance</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Branch</th>
+                            <th>City/State</th>
+                            <th class="text-right">Transactions</th>
+                            <th class="text-right">Total Collected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in collections %}
+                        <tr>
+                            <td><strong>{{ b.name }}</strong></td>
+                            <td class="text-gray-500">{{ b.city }}</td>
+                            <td class="text-right">{{ b.txn_count }}</td>
+                            <td class="text-right font-bold text-indigo-600">₹{{ "{:,.2f}".format(b.total_cash) }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not collections %}
+                        <tr>
+                            <td colspan="4" class="p-8 text-center text-gray-400 italic">No collections recorded for
+                                this period.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Collector-wise Table -->
+    <div class="card">
+        <div class="card-header">
+            <h3>👥 Collector Performance</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Staff Member</th>
+                            <th>City/State</th>
+                            <th class="text-right">Total Collected</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in collectors %}
+                        <tr>
+                            <td>
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-xs">
+                                        {{ c.username[:2].upper() }}
+                                    </div>
+                                    <strong>{{ c.username }}</strong>
+                                </div>
+                            </td>
+                            <td class="text-gray-500 text-sm">{{ c.city or 'Main Branch' }}</td>
+                            <td class="text-right font-bold text-emerald-600">₹{{ "{:,.2f}".format(c.total_collected) }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% if not collectors %}
+                        <tr>
+                            <td colspan="2" class="p-8 text-center text-gray-400 italic">No data available for
+                                collectors.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

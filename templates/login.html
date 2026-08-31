@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% block title %}Login – Spice Bites{% endblock %}
+
+{% block head %}
+<style>
+    /* Full width and centered for login page */
+    main.full-width {
+        margin-left: 0 !important;
+        width: 100% !important;
+        padding: 0 !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(-45deg, #6366f1, #8b5cf6, #d946ef, #3b82f6);
+        background-size: 400% 400%;
+        animation: gradientBG 15s ease infinite;
+    }
+
+    @keyframes gradientBG {
+        0% {
+            background-position: 0% 50%;
+        }
+
+        50% {
+            background-position: 100% 50%;
+        }
+
+        100% {
+            background-position: 0% 50%;
+        }
+    }
+
+    .login-card {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 24px;
+        padding: 50px 40px;
+        width: 100%;
+        max-width: 420px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        color: white;
+        text-align: center;
+        animation: slideUp 0.6s ease-out;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .login-card .brand-icon {
+        font-size: 48px;
+        margin-bottom: 10px;
+    }
+
+    .login-card h2 {
+        margin-bottom: 5px;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+    }
+
+    .login-card p.subtitle {
+        margin-bottom: 30px;
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    .login-card .form-group {
+        margin-bottom: 24px;
+        text-align: left;
+    }
+
+    .login-card label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        opacity: 0.9;
+    }
+
+    .login-card input {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        outline: none;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+
+    .login-card input::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    .login-card input:focus {
+        background: rgba(255, 255, 255, 0.25);
+        border-color: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+        transform: translateY(-1px);
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 14px;
+        border-radius: 12px;
+        border: none;
+        background: white;
+        color: #4f46e5;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 10px;
+    }
+
+    .login-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        background: #f8fafc;
+    }
+
+    .login-btn:active {
+        transform: translateY(0);
+    }
+
+    /* Light mode overrides handled in root */
+    [data-theme="light"] main.full-width {
+        background: linear-gradient(-45deg, #e0e7ff, #f3e8ff, #fdf4ff, #ede9fe);
+    }
+
+    [data-theme="light"] .login-card {
+        background: rgba(255, 255, 255, 0.8);
+        color: #1e293b;
+        border: 1px solid rgba(255, 255, 255, 1);
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .login-card input {
+        background: rgba(0, 0, 0, 0.03);
+        color: #1e293b;
+        border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .login-card input::placeholder {
+        color: #94a3b8;
+    }
+
+    [data-theme="light"] .login-card input:focus {
+        background: #ffffff;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    }
+
+    [data-theme="light"] .login-btn {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+
+    [data-theme="light"] .login-btn:hover {
+        background: linear-gradient(135deg, #4f46e5, #7c3aed);
+        box-shadow: 0 10px 20px rgba(99, 102, 241, 0.25);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-card">
+    <div class="brand-icon">🏪</div>
+    <h2>Welcome To Spice Bites</h2>
+    <p class="subtitle">Log in to Inventory & Billing</p>
+
+    <form method="POST" action="{{ url_for('login') }}">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter your username" required autofocus>
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+        </div>
+        <button type="submit" class="login-btn">Login</button>
+    </form>
+</div>
+{% endblock %}

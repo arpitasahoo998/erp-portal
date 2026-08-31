@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% block title %}Upload Purchase Bill – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📥 Upload Purchase Bill</h2>
+    <p>Enter purchase details and optionally upload the PDF bill. Inventory will be auto-updated.</p>
+</div>
+
+<div class="page-body">
+    <form method="POST" id="purchase-form" action="{{ url_for('upload_purchase') }}" enctype="multipart/form-data">
+        <input type="hidden" name="item_count" id="item_count" value="0">
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3>📋 Bill Details</h3>
+            </div>
+            <div class="card-body">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Supplier Name *</label>
+                        <input type="text" name="supplier_name" class="form-control"
+                            placeholder="Supplier / Vendor name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Bill Number</label>
+                        <input type="text" name="bill_number" class="form-control" placeholder="Invoice / Bill number">
+                    </div>
+                    <div class="form-group">
+                        <label>Bill Date</label>
+                        <input type="date" name="bill_date" class="form-control" value="{{ today }}">
+                    </div>
+                    <div class="form-group">
+                        <label>Attach PDF/Image Bill</label>
+                        <input type="file" name="pdf_file" id="pdf-file" class="form-control"
+                            accept=".pdf, .png, .jpg, .jpeg">
+                        <button type="button" class="btn btn-secondary btn-sm mt-2" onclick="autoFillFromPDF()">⚡
+                            Auto-fill Form</button>
+                    </div>
+                </div>
+                {% if current_user.role == 'superadmin' %}
+                <div class="form-group mt-3" style="max-width: 300px;">
+                    <label class="font-bold text-primary">Assign to Branch *</label>
+                    <select name="branch_id" class="form-control" required>
+                        {% for b in branches %}
+                        <option value="{{ b.id }}">{{ b.name }} ({{ b.city }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Select the branch where this stock will be added.</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3>📦 Items</h3>
+                <button type="button" class="btn btn-success btn-sm" onclick="addPurchaseItem()">➕ Add Item</button>
+            </div>
+            <div class="card-body">
+                <datalist id="product-datalist">
+                    {% for p in products %}
+                    <option value="{{ p.name }}">
+                        {% endfor %}
+                </datalist>
+
+                <div id="purchase-items" class="item-rows"></div>
+
+                <div class="empty-state" id="no-items-msg">
+                    <div class="empty-icon">📦</div>
+                    <h3>No items added</h3>
+                    <p>Click "Add Item" to start entering purchase items</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h3>🧾 Bill Totals</h3>
+            </div>
+            <div class="card-body">
+                <div style="display:flex; flex-wrap:wrap; gap: 15px;">
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>Subtotal Unit</label>
+                        <input type="number" name="total_unit_qty" id="total_unit_qty" readonly class="form-control">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>Subtotal (Rs.)</label>
+                        <input type="number" name="bill_subtotal" id="bill_subtotal" readonly class="form-control"
+                            step="0.01">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>Total GST (Rs.)</label>
+                        <input type="number" name="bill_gst" id="bill_gst" class="form-control" step="0.01"
+                            oninput="calcGrandTotal()">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>Other Charges (Rs.)</label>
+                        <input type="number" name="other_charges" id="other_charges" value="0" class="form-control"
+                            step="0.01" oninput="calcGrandTotal()">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>Rounding (Rs.)</label>
+                        <input type="number" name="rounding" id="rounding" value="0" class="form-control" step="0.01"
+                            oninput="calcGrandTotal()">
+                    </div>
+                    <div class="form-group" style="flex: 1; min-width: 150px;">
+                        <label>Grand Total (Rs.)</label>
+                        <input type="text" name="total_amount" id="bill_grand_total" readonly class="form-control">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-between">
+            <a href="{{ url_for('purchase_list') }}" class="btn btn-ghost">← Back</a>
+            <button type="submit" class="btn btn-primary btn-lg">✅ Upload & Update Inventory</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function addPurchaseItem() {
+        const container = document.getElementById('purchase-items');
+        const idx = document.getElementById('item_count').value;
+        const row = document.createElement('div');
+        row.className = 'item-row card mb-2 p-3';
+        row.id = `item_row_${idx}`;
+        row.innerHTML = `
+            <div class="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-3 items-end">
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">Product Name</label>
+                    <input type="text" name="product_name_${idx}" id="name_${idx}" class="form-control" list="product-datalist" required>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">HSN</label>
+                    <input type="text" name="hsn_code_${idx}" id="hsn_${idx}" class="form-control">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">Unit</label>
+                    <input type="text" name="unit_${idx}" id="unit_${idx}" class="form-control" oninput="calcGrandTotal()">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">Qty</label>
+                    <input type="text" name="quantity_${idx}" id="qty_${idx}" class="form-control" required oninput="calcRow(${idx})">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">Purchase Rate</label>
+                    <input type="text" name="purchase_price_${idx}" id="rate_${idx}" class="form-control" required oninput="calcRow(${idx})">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">GST%</label>
+                    <input type="text" name="gst_rate_${idx}" id="gst_${idx}" class="form-control" oninput="calcRow(${idx})">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">Sale Price</label>
+                    <input type="number" name="selling_price_${idx}" class="form-control" step="0.01">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-muted mb-1 block">Expiry Date</label>
+                    <input type="date" name="expiry_date_${idx}" class="form-control">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold uppercase text-accent mb-1 block">Amount</label>
+                    <input type="text" id="amt_${idx}" class="form-control font-bold text-accent" readonly>
+                </div>
+                <button type="button" class="btn btn-ghost text-red-600 p-0 mb-2" onclick="removeRow(${idx})">🗑️</button>
+            </div>
+            <input type="hidden" name="batch_no_${idx}" value="">
+        `;
+        container.appendChild(row);
+        document.getElementById('item_count').value = parseInt(idx) + 1;
+        document.getElementById('no-items-msg').style.display = 'none';
+        return idx;
+    }
+
+    async function autoFillFromPDF() {
+        const fileInput = document.getElementById('pdf-file');
+        if (!fileInput.files.length) { alert('Please select a file.'); return; }
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        try {
+            const res = await fetch('/api/parse-bill', { method: 'POST', body: formData });
+            const result = await res.json();
+            if (result.success && result.data) {
+                if (result.data.supplier_name) document.querySelector('[name="supplier_name"]').value = result.data.supplier_name;
+                if (result.data.bill_number) document.querySelector('[name="bill_number"]').value = result.data.bill_number;
+                if (result.data.bill_date) document.querySelector('[name="bill_date"]').value = result.data.bill_date;
+                if (result.data.totals && result.data.totals.other_charges) {
+                    document.getElementById('other_charges').value = result.data.totals.other_charges.replace(/,/g, '');
+                }
+                if (result.data.totals && result.data.totals.rounding) {
+                    document.getElementById('rounding').value = result.data.totals.rounding.replace(/,/g, '');
+                }
+                if (result.data.totals && result.data.totals.gst) {
+                    document.getElementById('bill_gst').value = result.data.totals.gst.replace(/,/g, '');
+                }
+                if (result.data.items && result.data.items.length > 0) {
+                    document.getElementById('purchase-items').innerHTML = '';
+                    document.getElementById('item_count').value = 0;
+                    result.data.items.forEach(item => {
+                        const idx = addPurchaseItem();
+                        document.getElementById(`name_${idx}`).value = item.product_name || '';
+                        document.getElementById(`hsn_${idx}`).value = item.hsn_code || '';
+                        document.getElementById(`unit_${idx}`).value = item.unit || '';
+                        document.getElementById(`qty_${idx}`).value = item.quantity || '';
+                        document.getElementById(`rate_${idx}`).value = item.purchase_price || '';
+                        document.getElementById(`gst_${idx}`).value = item.gst_rate || '';
+                        document.getElementById(`amt_${idx}`).value = item.amount || '';
+                    });
+                    calcGrandTotal();
+                }
+            }
+        } catch (err) { alert('Error parsing PDF.'); }
+    }
+
+    function removeRow(idx) { document.getElementById(`item_row_${idx}`).remove(); calcGrandTotal(); }
+
+    function calcRow(idx) {
+        const qty = parseFloat(document.getElementById(`qty_${idx}`).value.replace(/,/g, '')) || 0;
+        const rate = parseFloat(document.getElementById(`rate_${idx}`).value.replace(/,/g, '')) || 0;
+        const amt = (qty * rate) / 100;
+        document.getElementById(`amt_${idx}`).value = amt.toLocaleString(undefined, { minimumFractionDigits: 2 });
+        calcGrandTotal();
+    }
+
+    function calcGrandTotal() {
+        let sub = 0, autoGst = 0, units = 0;
+        const count = parseInt(document.getElementById('item_count').value);
+        for (let i = 0; i < count; i++) {
+            const row = document.getElementById(`item_row_${i}`);
+            if (!row) continue;
+            const a = parseFloat(document.getElementById(`amt_${i}`).value.replace(/,/g, '')) || 0;
+            const u = parseFloat(document.getElementById(`unit_${i}`).value) || 0;
+            const gRate = parseFloat(document.getElementById(`gst_${i}`).value) || 0;
+            sub += a; autoGst += (a * gRate / 100); units += u;
+        }
+
+        const gstInp = document.getElementById('bill_gst');
+        // If GST is empty, populate it with calculated total
+        if (!gstInp.value) {
+            gstInp.value = autoGst.toFixed(2);
+        }
+
+        const g = parseFloat(gstInp.value) || 0;
+        const other = parseFloat(document.getElementById('other_charges').value) || 0;
+        const rnd = parseFloat(document.getElementById('rounding').value) || 0;
+
+        document.getElementById('bill_subtotal').value = sub.toFixed(2);
+        document.getElementById('total_unit_qty').value = units.toFixed(2);
+        document.getElementById('bill_grand_total').value = (sub + g + other + rnd).toFixed(2);
+    }
+</script>
+{% endblock %}

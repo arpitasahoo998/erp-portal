@@ -1,0 +1,329 @@
+{% extends 'base.html' %}
+{% block title %}Create Sale Bill – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📄 Create Sale Bill</h2>
+    <p>Generate a new invoice. Products will be deducted batch-wise (FIFO).</p>
+</div>
+
+<div class="page-body">
+    <form id="sale-form" method="POST" action="{{ url_for('create_bill') }}">
+        <!-- HEADER 100% MATCH TO SCREENSHOT -->
+        <div class="card mb-4"
+            style="border-radius: 12px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+            <div class="card-header" style="background: none; border-bottom: 1px solid #edf2f7; padding: 15px 20px;">
+                <h3 style="font-size: 1.1rem; color: #2d3748; display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <span><span style="color: blue;">👤</span> Customer Details</span>
+                    <small style="font-weight: normal; color: #718096; font-size: 0.75rem;">🔍 Type to search regular customers</small>
+                </h3>
+            </div>
+            <div class="card-body" style="padding: 20px;">
+                <!-- TOP ROW: Name, SR, Date, PDF -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                    <div>
+                        <label class="d-block mb-1 text-xs font-bold text-muted uppercase">Customer Name *</label>
+                        <input type="text" name="customer_name" id="customer_name" class="form-control"
+                            style="background: #f8fafc; height: 45px;" placeholder="Type customer name..." 
+                            autocomplete="off" required>
+                    </div>
+                    <div>
+                        <label class="d-block mb-1 text-xs font-bold text-muted uppercase">SR No</label>
+                        <input type="text" name="bill_number" id="bill_number" class="form-control"
+                            style="background: #f8fafc; height: 45px;" readonly>
+                    </div>
+                    <div>
+                        <label class="d-block mb-1 text-xs font-bold text-muted uppercase">Bill Date</label>
+                        <input type="date" name="bill_date" id="bill_date" class="form-control"
+                            style="background: #f8fafc; height: 45px;">
+                    </div>
+                    {% if current_user.role == 'superadmin' %}
+                    <div>
+                        <label class="d-block mb-1 text-xs font-bold text-muted uppercase">Branch *</label>
+                        <select name="selected_branch_id" id="selected_branch_id" class="form-control" style="background: #f8fafc; height: 45px;" required>
+                            {% for b in branches %}
+                            <option value="{{ b.id }}">{{ b.name }} ({{ b.city }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                </div>
+                <!-- MIDDLE ROW: Phone -->
+                <div class="form-group mb-4">
+                    <label class="d-block mb-1 text-xs font-bold text-muted uppercase">Mobile No</label>
+                    <input type="text" name="customer_phone" id="customer_phone" class="form-control"
+                        style="background: #f8fafc; height: 45px; max-width: 300px;" placeholder="e.g. 9876543210">
+                </div>
+                <!-- BOTTOM ROW: Full width Address -->
+                <div class="form-group">
+                    <label class="d-block mb-1 text-xs font-bold text-muted uppercase">Address</label>
+                    <input type="text" name="address" id="address" class="form-control"
+                        style="background: #f8fafc; height: 45px;" placeholder="Full address">
+                </div>
+            </div>
+        </div>
+
+        <!-- ITEMS SECTION -->
+        <div class="card mb-4" style="border-radius: 12px; border: 1px solid #edf2f7;">
+            <div class="card-header flex justify-between items-center"
+                style="background: none; border-bottom: 1px solid #edf2f7; padding: 15px 20px;">
+                <h3 style="font-size: 1.1rem; color: #2d3748; display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #ed8936;">📦</span> Bill Items
+                </h3>
+                <button type="button" id="add-item-btn" class="btn btn-primary btn-sm" style="border-radius: 8px;">+ Add
+                    Item</button>
+            </div>
+            <div class="card-body text-center" id="items-container" style="padding: 60px 20px;">
+                <!-- Initially Empty per screenshot -->
+                <div id="empty-state">
+                    <div style="font-size: 3rem; opacity: 0.3; margin-bottom: 15px;">📜</div>
+                    <h3 style="color: #4a5568; margin-bottom: 5px;">No items added</h3>
+                    <p style="color: #a0aec0;">Click "Add Item" to start billing</p>
+                </div>
+                <div id="items-list" class="hidden text-left">
+                    <div id="items-rows"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="flex justify-end p-4">
+            <div class="w-1/3 p-4 bg-light rounded shadow-sm border">
+                <div class="flex justify-between mb-2"><span>Subtotal:</span><span id="sub_total"
+                        class="font-bold">₹0.00</span></div>
+                <div class="flex justify-between mb-2"><span>GST Total:</span><span id="gst_total"
+                        class="font-bold">₹0.00</span></div>
+                <div class="flex justify-between mb-2 items-center">
+                    <span class="text-sm font-semibold text-gray-600">Extra Discount (₹):</span>
+                    <input type="number" id="discount" name="discount" value="0" step="0.01" 
+                        class="form-control text-right" style="width: 120px; font-weight: bold; border-color: var(--accent);">
+                </div>
+                <hr class="my-3" style="border-top: 2px solid #e2e8f0;">
+                <div class="flex justify-between text-xl font-bold mt-2 text-primary">
+                    <span>Grand Total:</span>
+                    <span id="grand_total">₹0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 mt-4">
+            <button type="submit" class="btn btn-success btn-lg px-10">✅ Generate Bill</button>
+        </div>
+    </form>
+</div>
+
+<!-- Customer List Data -->
+<datalist id="customer-suggestions">
+    {% for c in customers %}
+    <option value="{{ c.name }}" data-address="{{ c.address or '' }}" data-phone="{{ c.phone or '' }}" data-id="{{ c.id }}"></option>
+    {% endfor %}
+</datalist>
+
+<script>
+    let productsList = [];
+    document.addEventListener('DOMContentLoaded', async function () {
+        // Today Date
+        document.getElementById('bill_date').value = new Date().toISOString().split('T')[0];
+        // Fetch next SR function
+        async function fetchNextSR() {
+            const branchId = document.getElementById('selected_branch_id')?.value || '';
+            const r = await fetch(`/api/next-sr-no?branch_id=${branchId}`);
+            const d = await r.json();
+            document.getElementById('bill_number').value = d.next_no || '0001';
+        }
+        
+        fetchNextSR();
+
+        async function fetchProducts() {
+            const branchId = document.getElementById('selected_branch_id')?.value || '';
+            const res = await fetch(`/api/products?branch_id=${branchId}`);
+            productsList = await res.json();
+            // Refresh any existing product selects
+            document.querySelectorAll('.product-select').forEach(sel => {
+                 const currentVal = sel.value;
+                 sel.innerHTML = '<option value="">Select...</option>' + 
+                    productsList.map(p => `<option value="${p.id}" data-gst="${p.gst_rate}" ${p.id == currentVal ? 'selected' : ''}>${p.name}</option>`).join('');
+            });
+        }
+
+        // If branch dropdown exists, listen for changes
+        const branchSelect = document.getElementById('selected_branch_id');
+        if (branchSelect) {
+            branchSelect.addEventListener('change', () => {
+                fetchNextSR();
+                fetchProducts();
+            });
+        }
+        
+        // Load initial products
+        fetchProducts();
+
+        // Customer Autocomplete Logic
+        const nameInput = document.getElementById('customer_name');
+        
+        nameInput.addEventListener('input', function() {
+            const val = this.value;
+            
+            // Only show suggestions if something is typed
+            if (val.length > 0) {
+                this.setAttribute('list', 'customer-suggestions');
+            } else {
+                this.removeAttribute('list');
+            }
+            
+            const options = document.querySelectorAll('#customer-suggestions option');
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].value === val) {
+                    document.getElementById('address').value = options[i].getAttribute('data-address');
+                    document.getElementById('customer_phone').value = options[i].getAttribute('data-phone') || '';
+                    let hidden = document.getElementById('customer_id');
+                    if(!hidden) {
+                        hidden = document.createElement('input');
+                        hidden.type = 'hidden';
+                        hidden.name = 'customer_id';
+                        hidden.id = 'customer_id';
+                        document.getElementById('sale-form').appendChild(hidden);
+                    }
+                    hidden.value = options[i].getAttribute('data-id');
+                    break;
+                }
+            }
+        });
+
+        // Ensure it's hidden on focus if empty
+        nameInput.addEventListener('focus', function() {
+            if (this.value.length === 0) {
+                this.removeAttribute('list');
+            }
+        });
+
+        document.getElementById('add-item-btn').addEventListener('click', function () {
+            const emptyState = document.getElementById('empty-state');
+            const itemsList = document.getElementById('items-list');
+            if (emptyState) emptyState.style.display = 'none';
+            if (itemsList) {
+                itemsList.classList.remove('hidden');
+                itemsList.style.display = 'block';
+            }
+            addItem();
+        });
+
+        document.getElementById('discount').addEventListener('input', updateTotals);
+    });
+
+    function addItem() {
+        const div = document.createElement('div');
+        div.className = 'item-row card mb-3 p-3 flex gap-3 align-items-center';
+        div.style = "background: #fff; border: 1px solid #e2e8f0; flex-direction: row;";
+        div.innerHTML = `
+            <div style="flex: 2.5;">
+                <label class="text-[10px] uppercase font-bold text-muted mb-1 block">Product</label>
+                <select name="product_id[]" class="form-control product-select" required>
+                    <option value="">Select...</option>
+                    ${productsList.map(p => `<option value="${p.id}" data-gst="${p.gst_rate}">${p.name}</option>`).join('')}
+                </select>
+            </div>
+            <div style="flex: 1.5;">
+                <label class="text-[10px] uppercase font-bold text-muted mb-1 block">Batch</label>
+                <select name="batch_id[]" class="form-control batch-select" required>
+                    <option value="">Select...</option>
+                </select>
+            </div>
+            <div style="flex: 1;">
+                <label class="text-[10px] uppercase font-bold text-muted mb-1 block">Qty</label>
+                <input type="number" name="quantity[]" class="form-control quantity-input" min="0.01" step="0.01" value="1" required>
+            </div>
+            <div style="flex: 1;">
+                <label class="text-[10px] uppercase font-bold text-muted mb-1 block">Rate (₹)</label>
+                <input type="number" name="rate[]" class="form-control rate-input" step="0.01" required>
+            </div>
+            <div style="flex: 0.8;">
+                <label class="text-[10px] uppercase font-bold text-muted mb-1 block">GST %</label>
+                <input type="number" name="gst_rate[]" class="form-control gst-input" step="0.1" readonly>
+            </div>
+            <div style="flex: 0.8;">
+                <label class="text-[10px] uppercase font-bold text-muted mb-1 block">Disc %</label>
+                <input type="number" name="discount_percent[]" class="form-control disc-input" step="0.01" min="0" max="100" value="0" required>
+            </div>
+            <div style="flex: 1.2; text-align: right;">
+                <label class="text-[10px] uppercase font-bold text-muted mb-1 block">Amount</label>
+                <div class="line-total font-bold">₹0.00</div>
+            </div>
+            <div style="flex: 0.3;">
+                <button type="button" class="btn btn-ghost text-red-600 p-0 mt-4" onclick="this.closest('.item-row').remove(); updateTotals();">🗑️</button>
+            </div>
+        `;
+        document.getElementById('items-rows').appendChild(div);
+
+        const pSel = div.querySelector('.product-select');
+        const bSel = div.querySelector('.batch-select');
+        const rInp = div.querySelector('.rate-input');
+        const gInp = div.querySelector('.gst-input');
+
+        pSel.addEventListener('change', function () {
+            const pid = this.value;
+            const opt = this.options[this.selectedIndex];
+            gInp.value = opt.getAttribute('data-gst') || 0;
+            
+            bSel.innerHTML = '<option value="">Loading...</option>';
+            fetch(`/api/product-batches/${pid}`).then(r => r.json()).then(batches => {
+                bSel.innerHTML = batches.map(b => `<option value="${b.id}" data-price="${b.selling_price}" data-stock="${b.remaining_qty}">${b.batch_no} (Stock: ${b.remaining_qty})</option>`).join('');
+                if (batches.length > 0) {
+                    bSel.value = batches[0].id;
+                    bSel.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+
+        bSel.addEventListener('change', function () {
+            const opt = this.options[this.selectedIndex];
+            if (opt) rInp.value = opt.getAttribute('data-price') || 0;
+            updateRowTotal(div);
+        });
+
+        div.querySelectorAll('input').forEach(i => {
+            i.addEventListener('input', () => updateRowTotal(div));
+        });
+    }
+
+    function updateRowTotal(row) {
+        const qty = parseFloat(row.querySelector('.quantity-input').value || 0);
+        const rate = parseFloat(row.querySelector('.rate-input').value || 0);
+        const disc = parseFloat(row.querySelector('.disc-input').value || 0);
+        
+        const gross = qty * rate;
+        const discountAmt = (gross * disc) / 100;
+        const net = Math.round((gross - discountAmt) * 100) / 100;
+        
+        row.querySelector('.line-total').innerText = '₹' + net.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let subtotal = 0;
+        let gstTotal = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const qty = parseFloat(row.querySelector('.quantity-input').value || 0);
+            const rate = parseFloat(row.querySelector('.rate-input').value || 0);
+            const gstR = parseFloat(row.querySelector('.gst-input').value || 0);
+            const discP = parseFloat(row.querySelector('.disc-input').value || 0);
+
+            const gross = qty * rate;
+            const discountAmt = (gross * discP) / 100;
+            const net = Math.round((gross - discountAmt) * 100) / 100;
+            const tax = Math.round((net * gstR / 100) * 100) / 100;
+
+            subtotal += net;
+            gstTotal += tax;
+        });
+
+        const extraDisc = parseFloat(document.getElementById('discount').value || 0);
+        const grand = Math.round((subtotal + gstTotal - extraDisc) * 100) / 100;
+
+        document.getElementById('sub_total').innerText = '₹' + subtotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('gst_total').innerText = '₹' + gstTotal.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        document.getElementById('grand_total').innerText = '₹' + (grand > 0 ? grand : 0).toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+</script>
+{% endblock %}

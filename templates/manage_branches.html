@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Manage Branches – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h2 class="font-bold text-gray-800">Manage Branches</h2>
+        <p class="text-gray-500">Add and manage business locations/branches</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('create-branch-modal').classList.add('active')">
+        ➕ Add Branch
+    </button>
+</div>
+
+<div class="page-body">
+    <div class="card p-0 mt-4 overflow-x-auto border-0 shadow-sm">
+        <table class="table hover w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="p-4 text-left">Branch Name</th>
+                    <th class="p-4 text-left">City/State</th>
+                    <th class="p-4 text-left">GSTIN</th>
+                    <th class="p-4 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in branches %}
+                <tr class="border-t border-gray-100 hover:bg-indigo-50/30 transition-colors">
+                    <td class="p-4 font-semibold text-gray-700">
+                        {{ b.name }}<br/>
+                        <small class="text-gray-400 font-normal">{{ b.phone }}</small>
+                    </td>
+                    <td class="p-4 text-gray-600">
+                        {{ b.city }}<br/>
+                        <small class="text-gray-400 truncate block max-w-xs">{{ b.address or '' }}</small>
+                    </td>
+                    <td class="p-4 text-gray-600">{{ b.gstin or '–' }}</td>
+                    <td class="p-4">
+                        <div class="flex gap-2">
+                            <button class="btn btn-ghost btn-xs edit-branch-btn" 
+                                data-id="{{ b.id }}" 
+                                data-name="{{ b.name }}" 
+                                data-city="{{ b.city }}"
+                                data-address="{{ b.address or '' }}"
+                                data-phone="{{ b.phone or '' }}"
+                                data-gstin="{{ b.gstin or '' }}"
+                                data-fssai="{{ b.fssai_no or '' }}"
+                                data-email="{{ b.email or '' }}"
+                                data-pin="{{ b.pin_code or '' }}"
+                                data-pan="{{ b.pan_no or '' }}"
+                                data-state="{{ b.state_code or '' }}">
+                                ✏️
+                            </button>
+                            <form method="POST" action="{{ url_for('delete_branch', id=b.id) }}" style="display:inline;" onsubmit="return confirm('Delete this branch?')">
+                                <button type="submit" class="btn btn-danger btn-xs">🗑️</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="p-8 text-center text-gray-400 italic">No branches created yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Create Branch Modal -->
+<div class="modal-overlay" id="create-branch-modal">
+    <div class="modal" style="max-width: 700px; width: 95%;">
+        <div class="modal-header">
+            <h3>🏢 Add New Branch</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('active')">✕</button>
+        </div>
+        <form action="{{ url_for('create_branch') }}" method="POST">
+            <div class="modal-body space-y-4">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Branch Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="e.g. Surat Main" required>
+                    </div>
+                    <div class="form-group">
+                        <label>City/State Name</label>
+                        <input type="text" name="city" class="form-control" placeholder="e.g. Rajasthan" required>
+                    </div>
+                    <div class="form-group">
+                        <label>GSTIN</label>
+                        <input type="text" name="gstin" class="form-control" placeholder="e.g. 08AARFR4846A1Z0">
+                    </div>
+                    <div class="form-group">
+                        <label>FSSAI LIC N</label>
+                        <input type="text" name="fssai_no" class="form-control" placeholder="e.g. 12215027000418">
+                    </div>
+                    <div class="form-group">
+                        <label>Email ID</label>
+                        <input type="email" name="email" class="form-control" placeholder="e.g. branch@gmail.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="text" name="phone" class="form-control" placeholder="e.g. +91 9876543210">
+                    </div>
+                    <div class="form-group">
+                        <label>PAN No.</label>
+                        <input type="text" name="pan_no" class="form-control" placeholder="e.g. AARFR4846A">
+                    </div>
+                    <div class="form-group">
+                        <label>State Code</label>
+                        <input type="text" name="state_code" class="form-control" placeholder="e.g. 08">
+                    </div>
+                    <div class="form-group">
+                        <label>PIN Code</label>
+                        <input type="text" name="pin_code" class="form-control" placeholder="e.g. 303007">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Full Address (for Invoice Header)</label>
+                    <textarea name="address" class="form-control" rows="2" placeholder="Street, Area, PIN..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Branch</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Branch Modal -->
+<div class="modal-overlay" id="edit-branch-modal">
+    <div class="modal" style="max-width: 700px; width: 95%;">
+        <div class="modal-header">
+            <h3>✏️ Edit Branch</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('active')">✕</button>
+        </div>
+        <form id="edit-branch-form" method="POST">
+            <div class="modal-body space-y-4">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>Branch Name</label>
+                        <input type="text" name="name" id="edit-branch-name" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>City/State Name</label>
+                        <input type="text" name="city" id="edit-branch-city" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label>GSTIN</label>
+                        <input type="text" name="gstin" id="edit-branch-gstin" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>FSSAI LIC N</label>
+                        <input type="text" name="fssai_no" id="edit-branch-fssai" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Email ID</label>
+                        <input type="email" name="email" id="edit-branch-email" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="text" name="phone" id="edit-branch-phone" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>PAN No.</label>
+                        <input type="text" name="pan_no" id="edit-branch-pan" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>State Code</label>
+                        <input type="text" name="state_code" id="edit-branch-state-code" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>PIN Code</label>
+                        <input type="text" name="pin_code" id="edit-branch-pin" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Full Address</label>
+                    <textarea name="address" id="edit-branch-address" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.edit-branch-btn');
+        if (btn) {
+            const d = btn.dataset;
+            document.getElementById('edit-branch-form').action = "/branches/edit/" + d.id;
+            document.getElementById('edit-branch-name').value = d.name;
+            document.getElementById('edit-branch-city').value = d.city;
+            document.getElementById('edit-branch-address').value = d.address;
+            document.getElementById('edit-branch-phone').value = d.phone;
+            document.getElementById('edit-branch-gstin').value = d.gstin;
+            document.getElementById('edit-branch-fssai').value = d.fssai || '';
+            document.getElementById('edit-branch-email').value = d.email || '';
+            document.getElementById('edit-branch-pin').value = d.pin || '';
+            document.getElementById('edit-branch-pan').value = d.pan || '';
+            document.getElementById('edit-branch-state-code').value = d.state || '';
+            document.getElementById('edit-branch-modal').classList.add('active');
+        }
+    });
+</script>
+{% endblock %}

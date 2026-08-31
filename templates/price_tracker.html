@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Price Tracker – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>📈 Price Tracker</h2>
+    <p>Batch-wise price comparison — <span class="text-danger">🔴 Red = Price Increased</span> · Normal = Same · <span class="text-success">🟢 Green = Price Decreased</span></p>
+</div>
+
+<div class="page-body">
+    {% if price_data %}
+    {% for item in price_data %}
+    <div class="card mb-3">
+        <div class="card-header">
+            <div>
+                <h3>{{ item.product.name }}</h3>
+                <small class="text-muted">
+                    Current Price: ₹{{ "%.2f"|format(item.current_price) }} · Stock: {{ item.stock }}
+                </small>
+            </div>
+            <span class="badge {{ 'badge-success' if item.stock > 10 else ('badge-warning' if item.stock > 0 else 'badge-danger') }}">
+                {{ item.stock }} in stock
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Batch No</th>
+                            <th>Purchase Date</th>
+                            <th class="text-right">Purchase Price</th>
+                            <th class="text-right">Selling Price</th>
+                            <th class="text-right">Remaining</th>
+                            <th>Trend</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for batch in item.batches %}
+                        <tr>
+                            <td>{{ batch.batch_no or '–' }}</td>
+                            <td>{{ batch.purchase_date.strftime('%d %b %Y') if batch.purchase_date else '–' }}</td>
+                            <td class="text-right">₹{{ "%.2f"|format(batch.purchase_price) }}</td>
+                            <td class="text-right">
+                                <span class="{{ 'price-up' if batch.trend == 'up' else ('price-down' if batch.trend == 'down' else 'price-normal') }}">
+                                    ₹{{ "%.2f"|format(batch.selling_price) }}
+                                    {% if batch.trend == 'up' %} ▲
+                                    {% elif batch.trend == 'down' %} ▼
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td class="text-right">{{ batch.remaining_qty }}</td>
+                            <td>
+                                {% if batch.trend == 'up' %}
+                                <span class="badge badge-danger">⬆ Increased</span>
+                                {% elif batch.trend == 'down' %}
+                                <span class="badge badge-success">⬇ Decreased</span>
+                                {% else %}
+                                <span class="badge badge-info">━ Same</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📈</div>
+        <h3>No price data yet</h3>
+        <p>Upload purchase bills with products to see price trends here</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

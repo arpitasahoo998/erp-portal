@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Purchase History – Spice Bites{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('click', function (e) {
+        const delBtn = e.target.closest('.delete-purchase-btn');
+        if (delBtn) {
+            const d = delBtn.dataset;
+            confirmDelete(d.form, d.name);
+            return;
+        }
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h2>📋 Purchase History</h2>
+        <p>All uploaded purchase bills and their details</p>
+    </div>
+    <a href="{{ url_for('upload_purchase') }}" class="btn btn-primary">
+        📥 Upload New
+    </a>
+</div>
+
+<div class="page-body">
+    {% if bills %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Supplier</th>
+                            <th>Bill No</th>
+                            <th>Date</th>
+                            <th class="text-right">Total Amount</th>
+                            <th class="text-right">Items</th>
+                            <th>PDF</th>
+                            <th>Uploaded</th>
+                            {% if current_user.role == 'superadmin' %}
+                            <th>Created By</th>
+                            {% endif %}
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in bills %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ bill.supplier_name }}</strong></td>
+                            <td>{{ bill.bill_number or '–' }}</td>
+                            <td>{{ bill.bill_date.strftime('%d %b %Y') if bill.bill_date else '–' }}</td>
+                            <td class="text-right">₹{{ "{:,.2f}".format(bill.total_amount) }}</td>
+                            <td class="text-right">{{ bill.items|length }}</td>
+                            <td>
+                                {% if bill.pdf_path %}
+                                <a href="{{ url_for('view_purchase_pdf', bill_id=bill.id) }}" class="badge bg-primary"
+                                    target="_blank" style="text-decoration: none;">
+                                    👁️ View PDF
+                                </a>
+                                {% else %}
+                                <span style="opacity: 0.5;">No PDF</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">{{ bill.uploaded_at.strftime('%d %b %Y') }}</td>
+                            {% if current_user.role == 'superadmin' %}
+                            <td>
+                                <div class="text-xs">
+                                    <span class="badge badge-info mb-1">{{ bill.branch.name if bill.branch else 'Global'
+                                        }} ({{ bill.branch.city }})</span>
+                                </div>
+                            </td>
+                            {% endif %}
+                            <td>
+                                <form id="delete-purchase-{{ bill.id }}" method="POST"
+                                    action="{{ url_for('delete_purchase_v211', bill_id=bill.id) }}"
+                                    style="display:inline;">
+                                    <button type="button" class="btn btn-danger btn-xs delete-purchase-btn"
+                                        data-form="delete-purchase-{{ bill.id }}"
+                                        data-name="{{ bill.supplier_name }} - {{ bill.bill_number }}">
+                                        🗑️
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3>No purchase bills yet</h3>
+        <p>Upload your first purchase bill to get started</p>
+        <a href="{{ url_for('upload_purchase') }}" class="btn btn-primary mt-2">📥 Upload Bill</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

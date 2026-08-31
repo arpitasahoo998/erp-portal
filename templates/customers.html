@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% block title %}Regular Customers – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h2>👥 Regular Customers</h2>
+        <p>Manage contact details for auto-filling bills</p>
+    </div>
+    <button class="btn btn-primary" onclick="document.getElementById('add-customer-modal').classList.add('active')">
+        ➕ Add Customer
+    </button>
+</div>
+
+<div class="page-body">
+    <div class="card overflow-x-auto">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Customer Name</th>
+                    <th>Phone</th>
+                    <th>Address</th>
+                    <th class="text-center">Actions</th>
+                    {% if current_user.role == 'superadmin' %}
+                    <th>Created By</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td class="text-muted">{{ loop.index }}</td>
+                    <td><b>{{ c.name }}</b></td>
+                    <td>{{ c.phone or '–' }}</td>
+                    <td>{{ c.address or '–' }}</td>
+                    <td class="text-center">
+                        <div class="flex gap-2 justify-center">
+                            <button class="btn btn-ghost btn-xs edit-cust-btn" title="Edit" data-id="{{ c.id }}"
+                                data-name="{{ c.name }}" data-phone="{{ c.phone or '' }}"
+                                data-address="{{ c.address or '' }}">
+                                ✏️
+                            </button>
+                            <form id="del-cust-{{ c.id }}" action="{{ url_for('delete_customer', id=c.id) }}"
+                                method="POST" style="display:inline;">
+                                <button type="button" class="btn btn-danger btn-xs" title="Delete"
+                                    onclick="confirmDelete('del-cust-{{ c.id }}', '{{ c.name }}')">
+                                    🗑️
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                    {% if current_user.role == 'superadmin' %}
+                    <td>
+                        <div class="text-xs">
+                            <span class="badge badge-info mb-1">{{ c.branch.name if c.branch else 'Global' }}</span>
+                        </div>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center py-8 text-muted">No regular customers found. Add one to enable
+                        autocomplete in billing.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add Customer Modal -->
+<div class="modal-overlay" id="add-customer-modal">
+    <div class="modal w-[400px]">
+        <div class="modal-header">
+            <h3>➕ Add New Customer</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('active')">✕</button>
+        </div>
+        <form action="{{ url_for('add_customer') }}" method="POST">
+            <div class="modal-body space-y-4">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. John Doe" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" name="phone" class="form-control" placeholder="e.g. 9876543210">
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <textarea name="address" class="form-control" rows="3" placeholder="Customer address..."></textarea>
+                </div>
+                {% if current_user.role == 'superadmin' %}
+                <div class="form-group">
+                    <label>Branch</label>
+                    <select name="branch_id" class="form-control" required>
+                        {% for b in branches %}
+                        <option value="{{ b.id }}">{{ b.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost"
+                    onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Customer Modal -->
+<div class="modal-overlay" id="edit-customer-modal">
+    <div class="modal w-[400px]">
+        <div class="modal-header">
+            <h3>✏️ Edit Customer</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('active')">✕</button>
+        </div>
+        <form id="edit-customer-form" method="POST">
+            <div class="modal-body space-y-4">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" id="edit-cust-name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" name="phone" id="edit-cust-phone" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <textarea name="address" id="edit-cust-address" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost"
+                    onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Update Customer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Handle Edit button clicks
+        document.querySelectorAll('.edit-cust-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const id = this.getAttribute('data-id');
+                const name = this.getAttribute('data-name');
+                const phone = this.getAttribute('data-phone');
+                const address = this.getAttribute('data-address');
+
+                document.getElementById('edit-customer-form').action = '/customers/edit/' + id;
+                document.getElementById('edit-cust-name').value = name;
+                document.getElementById('edit-cust-phone').value = phone;
+                document.getElementById('edit-cust-address').value = address;
+                document.getElementById('edit-customer-modal').classList.add('active');
+            });
+        });
+    });
+
+    function confirmDelete(formId, name) {
+        Swal.fire({
+            title: 'Delete ' + name + '?',
+            text: "This customer will be permanently removed.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e3342f',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Yes, delete!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                document.getElementById(formId).submit();
+            }
+        });
+    }
+</script>
+{% endblock %}

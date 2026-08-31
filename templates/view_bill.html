@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+{% block title %}{{ bill.invoice_number }} – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Invoice {{ bill.invoice_number }}</h2>
+    <p>Created on {{ bill.created_at.strftime('%d %b %Y, %I:%M %p') }}</p>
+</div>
+
+<div class="page-body">
+    <div class="bill-preview">
+        <div class="bill-header-section">
+            <h2>SPICE BITES</h2>
+            <div class="bill-subtitle">Tax Invoice</div>
+        </div>
+
+        <div class="bill-info-grid">
+            <div class="bill-info-block">
+                <h4>Invoice Details</h4>
+                <p><strong>Invoice No:</strong> {{ bill.invoice_number }}</p>
+                <p><strong>SR No:</strong> {{ bill.sr_no or '–' }}</p>
+                <p><strong>Date:</strong> {{ bill.bill_date.strftime('%d %b %Y') }}</p>
+            </div>
+            <div class="bill-info-block">
+                <h4>Bill To</h4>
+                <p><strong>Name:</strong> {{ bill.customer_name }}</p>
+                {% if bill.customer_address %}
+                <p><strong>Address:</strong> {{ bill.customer_address }}</p>
+                {% endif %}
+                {% if bill.customer_phone %}
+                <p><strong>Phone:</strong> {{ bill.customer_phone }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Product</th>
+                        <th>HSN</th>
+                        <th class="text-right">Qty</th>
+                        <th class="text-right">Price</th>
+                        <th class="text-right">GST%</th>
+                        <th class="text-right">Disc%</th>
+                        <th class="text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in bill.items %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ item.product.name if item.product else item.product_name }}</td>
+                        <td>{{ item.product.hsn_code if item.product else '–' }}</td>
+                        <td class="text-right">{{ item.quantity }}</td>
+                        <td class="text-right">₹{{ "{:,.2f}".format(item.price) }}</td>
+                        <td class="text-right">{{ item.gst_rate }}%</td>
+                        <td class="text-right">{{ item.discount_percent|default(0, true) }}%</td>
+                        <td class="text-right"><strong>₹{{ "{:,.2f}".format(item.amount) }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bill-totals">
+            <div class="total-row">
+                <span>Subtotal</span>
+                <span>₹{{ "{:,.2f}".format(bill.subtotal) }}</span>
+            </div>
+            <div class="total-row">
+                <span>GST</span>
+                <span>₹{{ "{:,.2f}".format(bill.gst_amount) }}</span>
+            </div>
+            {% if bill.discount > 0 %}
+            <div class="total-row">
+                <span>Discount</span>
+                <span>-₹{{ "{:,.2f}".format(bill.discount) }}</span>
+            </div>
+            {% endif %}
+            <div class="total-row grand">
+                <span>TOTAL</span>
+                <span>₹{{ "{:,.2f}".format(bill.total_amount) }}</span>
+            </div>
+        </div>
+
+        <div class="bill-actions">
+            <a href="{{ url_for('bill_pdf', bill_id=bill.id) }}" class="btn btn-primary" target="_blank">
+                📄 Download PDF
+            </a>
+            <button class="btn btn-ghost"
+                onclick="openEditBill({{ bill.id }}, '{{ bill.customer_name | replace("'", "\\'") }}', '{{ bill.customer_address | replace("'", "\\'") }}', '{{ bill.sr_no }}', '{{ bill.bill_date.isoformat() }}', {{ bill.discount }})">
+                ✏️ Edit Details
+            </button>
+            <form id="delete-bill-{{ bill.id }}" method="POST" action="{{ url_for('delete_bill', bill_id=bill.id) }}"
+                style="display:inline;">
+                <button type="button" class="btn btn-danger"
+                    onclick="confirmDelete('delete-bill-{{ bill.id }}', '{{ bill.invoice_number }}')">
+                    🗑️ Delete Bill
+                </button>
+            </form>
+            <a href="{{ url_for('billing_list') }}" class="btn btn-ghost">
+                ← All Bills
+            </a>
+            <a href="{{ url_for('create_bill') }}" class="btn btn-success">
+                ➕ New Bill
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Bill Modal -->
+<div class="modal-overlay" id="edit-bill-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>✏️ Edit Bill Details</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('active')">✕</button>
+        </div>
+        <form method="POST" id="edit-bill-form" action="">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" name="customer_name" id="edit-bill-customer" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" name="customer_address" id="edit-bill-address" class="form-control">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>SR No</label>
+                        <input type="text" name="sr_no" id="edit-bill-sr" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Bill Date</label>
+                        <input type="date" name="bill_date" id="edit-bill-date" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group" style="display: none;">
+                    <label>Discount Amount (₹)</label>
+                    <input type="number" name="discount" id="edit-bill-discount" class="form-control" step="0.01"
+                        min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost"
+                    onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    function openEditBill(id, customer, address, sr, billDate, discount) {
+        document.getElementById('edit-bill-form').action = `/billing/${id}/edit`;
+        document.getElementById('edit-bill-customer').value = customer;
+        document.getElementById('edit-bill-address').value = address;
+        document.getElementById('edit-bill-sr').value = sr;
+        document.getElementById('edit-bill-date').value = billDate;
+        document.getElementById('edit-bill-discount').value = discount || 0;
+        document.getElementById('edit-bill-modal').classList.add('active');
+    }
+</script>
+{% endblock %}

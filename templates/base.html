@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Spice Bites Portal{% endblock %}</title>
+    <meta name="description" content="Spice Bites – Inventory Management & Billing Portal">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            corePlugins: {
+                preflight: false,
+            }
+        }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    {% if current_user.is_authenticated %}
+    <div class="top-utils">
+        <button class="help-trigger" onclick="openManualModal()" title="User Manual">?</button>
+
+        <div class="user-profile-wrapper">
+            <div class="user-profile-trigger" onclick="toggleUserMenu(event)">
+                <div class="avatar">{{ current_user.username[0]|upper }}</div>
+                <div class="user-meta">
+                    <span class="username">{{ current_user.username }}</span>
+                    <span class="user-role">{{ current_user.role|title }}</span>
+                </div>
+                <span class="chevron">▾</span>
+            </div>
+            <div class="user-dropdown-menu" id="userMenu">
+                <a href="{{ url_for('logout') }}" class="dropdown-item logout-link">
+                    <span class="icon">🚪</span> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mobile toggle -->
+    {% if current_user.is_authenticated %}
+    <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-icon">🏪</div>
+            <h1>Spice Bites<small>Inventory & Billing</small></h1>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Overview</div>
+                <a href="{{ url_for('dashboard') }}" class="nav-link {{ 'active' if request.endpoint == 'dashboard' }}">
+                    <span class="icon">📊</span> Dashboard
+                </a>
+                {% if current_user.role == 'superadmin' %}
+                <a href="{{ url_for('manage_users') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'manage_users' }}">
+                    <span class="icon">👥</span> Manage Users
+                </a>
+                <a href="{{ url_for('manage_branches') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'manage_branches' }}">
+                    <span class="icon">🏢</span> Manage Branches
+                </a>
+                {% endif %}
+                <a href="{{ url_for('customers') }}" class="nav-link {{ 'active' if request.endpoint == 'customers' }}">
+                    <span class="icon">🤝</span> Regular Customers
+                </a>
+            </div>
+            {% if current_user.permissions == '*' or 'inventory' in current_user.permissions.lower() %}
+            <div class="nav-section">
+                <div class="nav-section-title">Inventory</div>
+                <a href="{{ url_for('inventory') }}" class="nav-link {{ 'active' if request.endpoint == 'inventory' }}">
+                    <span class="icon">📦</span> Products & Stock
+                </a>
+                <a href="{{ url_for('upload_purchase') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'upload_purchase' }}">
+                    <span class="icon">📥</span> Upload Purchase
+                </a>
+                <a href="{{ url_for('purchase_list') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'purchase_list' }}">
+                    <span class="icon">📋</span> Purchase History
+                </a>
+            </div>
+            {% endif %}
+
+            {% if current_user.permissions == '*' or 'billing' in current_user.permissions.lower() %}
+            <div class="nav-section">
+                <div class="nav-section-title">Billing</div>
+                <a href="{{ url_for('create_bill') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'create_bill' }}">
+                    <span class="icon">🧾</span> Create Bill
+                </a>
+                <a href="{{ url_for('billing_list') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'billing_list' }}">
+                    <span class="icon">📃</span> All Bills
+                </a>
+            </div>
+            {% endif %}
+
+            {% if current_user.permissions == '*' or 'finance' in current_user.permissions.lower() %}
+            <div class="nav-section">
+                <div class="nav-section-title">Finance</div>
+                <a href="{{ url_for('payments') }}" class="nav-link {{ 'active' if request.endpoint == 'payments' }}">
+                    <span class="icon">💰</span> Payments
+                </a>
+                <a href="{{ url_for('price_tracker') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'price_tracker' }}">
+                    <span class="icon">📈</span> Price Tracker
+                </a>
+                {% if current_user.role == 'superadmin' %}
+                <a href="{{ url_for('branch_activity') }}"
+                    class="nav-link {{ 'active' if request.endpoint == 'branch_activity' }}">
+                    <span class="icon">📊</span> Branch Activity
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            </div>
+        </nav>
+
+        <!-- Sidebar logic... -->
+    </aside>
+    {% endif %}
+
+    <main class="main-content {% if not current_user.is_authenticated %}full-width{% endif %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Flash messages handled by SweetAlert -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            {% for category, message in messages %}
+            Swal.fire({
+                icon: {{ ("success" if category == "success" else "error" if category == "danger" else "info") | tojson }},
+        title: { { ("Success" if category == "success" else "Notice") | tojson } },
+        text: { { message | tojson } },
+        confirmButtonColor: 'var(--accent)',
+            background: 'var(--surface)',
+                color: 'var(--text-main)'
+            });
+        {% endfor %}
+        });
+    </script>
+    {% endif %}
+    {% endwith %}
+
+    {% if current_user.is_authenticated %}
+    <!-- User Manual Modal -->
+    <div class="modal-overlay" id="manual-modal" style="z-index: 1001;">
+        <div class="modal" style="max-width: 900px; max-height: 85vh; overflow-y: auto;">
+            <div class="modal-header">
+                <h3>📖 User Manual & Documentation</h3>
+                <button class="modal-close" onclick="closeManualModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="space-y-8">
+                    <!-- ROLE: STAFF USERS -->
+                    <section>
+                        <h3 class="text-indigo-600 border-b pb-2 mb-4 uppercase text-xs font-bold tracking-widest">👤
+                            User Operations Guide</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="card p-6 border-l-4 border-indigo-500">
+                                <h4 class="flex items-center gap-2 mb-3 font-bold"><span>🧾</span> Daily Billing</h4>
+                                <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                                    <li><strong>Customer Search:</strong> Type a name to auto-fill address/phone for
+                                        regular buyers.</li>
+                                    <li><strong>Batch Selection:</strong> System uses FIFO to pick the oldest stock
+                                        automatically.</li>
+                                    <li><strong>Calculations:</strong> Discounts and GST are calculated in real-time.
+                                    </li>
+                                    <li><strong>PDF Invoices:</strong> Professional A4 prints with branch-specific
+                                        details and digital stamps.</li>
+                                </ul>
+                            </div>
+                            <div class="card p-6 border-l-4 border-indigo-500">
+                                <h4 class="flex items-center gap-2 mb-3 font-bold"><span>📦</span> Inventory & Stock
+                                </h4>
+                                <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                                    <li><strong>Stock Status:</strong> Real-time view of products available in your
+                                        branch.</li>
+                                    <li><strong>Dead Stock:</strong> Use the 💀 icon to remove damaged/expired items and
+                                        log the reason.</li>
+                                    <li><strong>Expiry Alerts:</strong> Monitor batch-wise expiry dates in the inventory
+                                        list.</li>
+                                </ul>
+                            </div>
+                            <div class="card p-6 border-l-4 border-indigo-500">
+                                <h4 class="flex items-center gap-2 mb-3 font-bold"><span>💰</span> Payment Collection
+                                </h4>
+                                <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                                    <li><strong>Tracking:</strong> Search for pending bills in the Payments module.</li>
+                                    <li><strong>Installments:</strong> Record partial payments with Mode
+                                        (Cash/Bank/UPI/Cheque).</li>
+                                    <li><strong>Audit Trail:</strong> Your name is automatically recorded against every
+                                        collection.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                    <br>
+                    <!-- ROLE: SUPERADMINS -->
+                    <section class="mt-8">
+                        <h3 class="text-indigo-600 border-b pb-2 mb-4 uppercase text-xs font-bold tracking-widest">👑
+                            Superadmin Administrative Controls</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="card p-6 border-l-4 border-emerald-500">
+                                <h4 class="flex items-center gap-2 mb-3 font-bold"><span>🏢</span> Branch Profiling</h4>
+                                <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                                    <li><strong>Compliance Setup:</strong> Configure GSTIN, FSSAI, PAN, and Address for
+                                        each branch.</li>
+                                    <li><strong>Identity:</strong> These details dynamically populate the header of all
+                                        branch invoices.</li>
+                                </ul>
+                            </div>
+                            <div class="card p-6 border-l-4 border-emerald-500">
+                                <h4 class="flex items-center gap-2 mb-3 font-bold"><span>📊</span> Monthly Analytics
+                                </h4>
+                                <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                                    <li><strong>Branch Activity:</strong> View consolidated monthly collection reports
+                                        for all locations.</li>
+                                    <li><strong>Staff Performance:</strong> Compare total money collected by different
+                                        staff members.</li>
+                                    <li><strong>Historical Data:</strong> Use filters to jump between months and years
+                                        for trend analysis.</li>
+                                </ul>
+                            </div>
+                            <div class="card p-6 border-l-4 border-emerald-500">
+                                <h4 class="flex items-center gap-2 mb-3 font-bold"><span>👥</span> User & Security</h4>
+                                <ul class="text-sm text-muted space-y-2 list-disc pl-4">
+                                    <li><strong>RBAC:</strong> Create users and assign specific module permissions
+                                        (Billing, Finance, etc.).</li>
+                                    <li><strong>Global Access:</strong> Superadmins see all data; staff are isolated to
+                                        their own branch.</li>
+                                    <li><strong>Data Reset:</strong> Clean up installment history or override totals if
+                                        entries are wrong.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+            <div class="mt-8 text-center p-8 bg-surface border rounded-2xl">
+                <h4 class="mb-2">Need Technical Support?</h4>
+                <p class="text-sm text-muted mb-4">For database connectivity issues or server maintenance, contact your
+                    technical administrator.</p>
+                <div style="font-size: 0.7rem; opacity: 0.5;">Spice Bites Portal v3.0 - 2026</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-ghost" onclick="closeManualModal()">Close Manual</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script>
+        // Override native window.alert to use SweetAlert
+        window.alert = function (msg) {
+            Swal.fire({
+                text: msg,
+                confirmButtonColor: 'var(--accent)',
+                background: 'var(--surface)',
+                color: 'var(--text-main)'
+            });
+        };
+
+        // Theme persistence
+        (function () {
+            const saved = localStorage.getItem('rara-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', saved);
+            updateThemeButton(saved);
+        })();
+
+        function closePaymentModal() {
+            document.getElementById('payment-modal').classList.remove('active');
+        }
+
+        function openManualModal() {
+            document.getElementById('manual-modal').classList.add('active');
+        }
+
+        function closeManualModal() {
+            document.getElementById('manual-modal').classList.remove('active');
+        }
+
+        function toggleUserMenu(e) {
+            if (e) e.stopPropagation();
+            const menu = document.getElementById('userMenu');
+            menu.classList.toggle('active');
+        }
+
+        // Close menu when clicking outside
+        window.addEventListener('click', function () {
+            const menu = document.getElementById('userMenu');
+            if (menu) menu.classList.remove('active');
+        });
+
+        function toggleTheme() {
+            const current = document.documentElement.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('rara-theme', next);
+            updateThemeButton(next);
+        }
+
+        function updateThemeButton(theme) {
+            const icon = document.getElementById('theme-icon');
+            const label = document.getElementById('theme-label');
+            if (icon && label) {
+                if (theme === 'dark') {
+                    icon.textContent = '☀️';
+                    label.textContent = 'Light Mode';
+                } else {
+                    icon.textContent = '🌙';
+                    label.textContent = 'Dark Mode';
+                }
+            }
+        }
+
+        // Confirm delete helper with SweetAlert
+        function confirmDelete(formId, itemName) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: `Delete "${itemName}"? This cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e3342f',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, delete it!',
+                background: 'var(--surface)',
+                color: 'var(--text-main)'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById(formId).submit();
+                }
+            });
+        }
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

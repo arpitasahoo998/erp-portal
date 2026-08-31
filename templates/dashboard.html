@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard – Spice Bites Portal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Dashboard</h2>
+    <p>Business overview for {{ start_date.strftime('%d %b %Y') }} – {{ end_date.strftime('%d %b %Y') }}</p>
+</div>
+
+
+<div class="page-body">
+    <!-- Date filter -->
+    <form class="filter-bar" method="GET" action="{{ url_for('dashboard') }}">
+        <div class="form-group">
+            <label>Start Date</label>
+            <input type="date" name="start_date" class="form-control" value="{{ start_date.isoformat() }}">
+        </div>
+        <div class="form-group">
+            <label>End Date</label>
+            <input type="date" name="end_date" class="form-control" value="{{ end_date.isoformat() }}">
+        </div>
+        {% if current_user.role == 'superadmin' %}
+        <div class="form-group">
+            <label>Branch</label>
+            <select name="branch_id" class="form-control">
+                <option value="">All Branches</option>
+                {% for b in branches %}
+                <option value="{{ b.id }}" {% if selected_branch_id==b.id %}selected{% endif %}>{{ b.name }} ({{ b.city
+                    }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">
+            🔍 Filter
+        </button>
+    </form>
+
+    <!-- Stat cards -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-value">₹{{ "{:,.0f}".format(total_sales) }}</div>
+            <div class="stat-label">Total Sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">🧾</div>
+            <div class="stat-value">{{ total_bills }}</div>
+            <div class="stat-label">Bills Generated</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">⏳</div>
+            <div class="stat-value text-danger">{{ upcoming_followups|length }}</div>
+            <div class="stat-label">Due Follow-ups</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📦</div>
+            <div class="stat-value">{{ total_products }}</div>
+            <div class="stat-label">Total Products</div>
+        </div>
+    </div>
+
+    <!-- Charts & Top products -->
+    <div class="grid-2">
+        <div class="card">
+            <div class="card-header">
+                <h3>📊 Sales Overview</h3>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="salesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h3>🏆 Top Selling Products</h3>
+            </div>
+            <div class="card-body">
+                {% if top_products %}
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Product</th>
+                                <th class="text-right">Qty Sold</th>
+                                <th class="text-right">Revenue</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for name, qty, amt in top_products %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ name }}</td>
+                                <td class="text-right">{{ qty }}</td>
+                                <td class="text-right">₹{{ "{:,.0f}".format(amt) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">📊</div>
+                    <h3>No sales data yet</h3>
+                    <p>Start creating bills to see top sellers here</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Low stock alerts -->
+    {% if low_stock %}
+    <div class="card mt-3">
+        <div class="card-header">
+            <h3>⚠️ Low Stock Alerts</h3>
+        </div>
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th class="text-right">Remaining Stock</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in low_stock %}
+                        <tr>
+                            <td>{{ item.name }}</td>
+                            <td class="text-right">{{ item.branch_stock }}</td>
+                            <td>
+                                {% if item.branch_stock == 0 %}
+                                <span class="badge badge-danger">Out of Stock</span>
+                                {% elif item.branch_stock <= 5 %} <span class="badge badge-warning">Critical</span>
+                                    {% else %}
+                                    <span class="badge badge-info">Low</span>
+                                    {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Payment Reminders -->
+    {% if upcoming_followups %}
+    <div class="card mt-3">
+        <div class="card-header flex justify-between items-center">
+            <h3 class="">💸 Payment Follow-ups Due</h3>
+            {% if current_user.permissions == '*' or 'finance' in current_user.permissions.lower() %}
+            <a href="{{ url_for('payments') }}" class="btn btn-ghost btn-xs">View All</a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Bill #</th>
+                            <th>Customer</th>
+                            <th class="text-right">Balance</th>
+                            <th>Follow-up Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in upcoming_followups %}
+                        <tr>
+                            <td>{{ p.sale_bill.invoice_number }}</td>
+                            <td>{{ p.sale_bill.customer_name }}</td>
+                            <td class="text-right font-bold text-danger">₹{{ "{:,.2f}".format(p.balance) }}</td>
+                            <td>{{ p.followup_date.strftime('%d %b %Y') }}</td>
+                            <td><span class="badge badge-warning">{{ p.payment_status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    initDashboardChart(
+        {{ chart_labels | tojson }},
+        {{ chart_data | tojson }}
+    );
+</script>
+{% endblock %}

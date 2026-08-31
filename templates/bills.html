@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block title %}All Bills – Spice Bites{% endblock %}
+
+{% block content %}
+<div class="page-header flex justify-between items-center">
+    <div>
+        <h2>📃 All Sale Bills</h2>
+        <p>View, edit, and manage all generated invoices</p>
+    </div>
+    <a href="{{ url_for('create_bill') }}" class="btn btn-primary">
+        ➕ Create New Bill
+    </a>
+</div>
+
+<div class="page-body">
+    {% if bills %}
+    <div class="card">
+        <div class="card-body">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Invoice No</th>
+                            <th>SR</th>
+                            <th>Customer</th>
+                            <th>Date</th>
+                            <th class="text-right">Amount</th>
+                            <th>Payment</th>
+                            {% if current_user.role == 'superadmin' %}
+                            <th>Created By</th>
+                            {% endif %}
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bill in bills %}
+                        <tr>
+                            <td>{{ loop.index }}</td>
+                            <td><strong>{{ bill.invoice_number }}</strong></td>
+                            <td>{{ bill.sr_no or '–' }}</td>
+                            <td>{{ bill.customer_name }}</td>
+                            <td>{{ bill.bill_date.strftime('%d %b %Y') }}</td>
+                            <td class="text-right"><strong>₹{{ "{:,.2f}".format(bill.total_amount) }}</strong></td>
+                            <td>
+                                {% if bill.payment %}
+                                <span
+                                    class="badge {{ 'badge-success' if bill.payment.payment_status == 'Paid' else 'badge-warning' }}">
+                                    {{ bill.payment.payment_status }}
+                                </span>
+                                {% else %}
+                                {% endif %}
+                            </td>
+                            {% if current_user.role == 'superadmin' %}
+                            <td><span class="badge badge-info">{{ bill.branch.name if bill.branch else 'Main' }} ({{
+                                    bill.branch.city}})</span>
+                            </td>
+                            {% endif %}
+                            <td>
+                                <div class="flex gap-2">
+                                    <a href="{{ url_for('view_bill', bill_id=bill.id) }}" class="btn btn-ghost btn-xs"
+                                        title="View Digital Receipt">👁️ View</a>
+                                    <a href="{{ url_for('bill_pdf', bill_id=bill.id) }}" class="btn btn-success btn-xs"
+                                        target="_blank" title="Download Professional PDF">📄 PDF</a>
+                                    <button class="btn btn-ghost btn-xs edit-bill-btn" title="Modify Bill Info"
+                                        data-id="{{ bill.id }}" data-customer="{{ bill.customer_name }}"
+                                        data-address="{{ bill.customer_address }}" data-sr="{{ bill.sr_no }}"
+                                        data-date="{{ bill.bill_date.isoformat() }}"
+                                        data-discount="{{ bill.discount or 0 }}">
+                                        ✏️ Edit
+                                    </button>
+                                    <form id="delete-bill-{{ bill.id }}" method="POST"
+                                        action="{{ url_for('delete_bill', bill_id=bill.id) }}" style="display:inline;">
+                                        <button type="button" class="btn btn-danger btn-xs delete-bill-btn"
+                                            title="Delete Invoice" data-form="delete-bill-{{ bill.id }}"
+                                            data-number="{{ bill.invoice_number }}">
+                                            🗑️
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">📃</div>
+        <h3>No bills yet</h3>
+        <p>Create your first sale bill to see it here</p>
+        <a href="{{ url_for('create_bill') }}" class="btn btn-primary mt-2">➕ Create Bill</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Edit Bill Modal -->
+<div class="modal-overlay" id="edit-bill-modal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3>✏️ Edit Bill Details</h3>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('active')">✕</button>
+        </div>
+        <form method="POST" id="edit-bill-form" action="">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Customer Name</label>
+                    <input type="text" name="customer_name" id="edit-bill-customer" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" name="customer_address" id="edit-bill-address" class="form-control">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>SR No</label>
+                        <input type="text" name="sr_no" id="edit-bill-sr" class="form-control" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Bill Date</label>
+                        <input type="date" name="bill_date" id="edit-bill-date" class="form-control">
+                    </div>
+                </div>
+                <!-- <div class="form-group mt-2">
+                    <label>Discount (₹)</label>
+                    <input type="number" name="discount" id="edit-bill-discount" step="0.01" class="form-control">
+                </div> -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-ghost"
+                    onclick="this.closest('.modal-overlay').classList.remove('active')">Cancel</button>
+                <button type="submit" class="btn btn-primary">💾 Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('click', function (e) {
+        const editBtn = e.target.closest('.edit-bill-btn');
+        if (editBtn) {
+            const d = editBtn.dataset;
+            openEditBill(d.id, d.customer, d.address, d.sr, d.date, d.discount);
+            return;
+        }
+
+        const delBtn = e.target.closest('.delete-bill-btn');
+        if (delBtn) {
+            const d = delBtn.dataset;
+            confirmDelete(d.form, d.number);
+            return;
+        }
+    });
+
+    function openEditBill(id, customer, address, sr, billDate, discount) {
+        document.getElementById('edit-bill-form').action = `/billing/${id}/edit`;
+        document.getElementById('edit-bill-customer').value = customer;
+        document.getElementById('edit-bill-address').value = address;
+        document.getElementById('edit-bill-sr').value = sr;
+        document.getElementById('edit-bill-date').value = billDate;
+        // document.getElementById('edit-bill-discount').value = discount || 0;
+        document.getElementById('edit-bill-modal').classList.add('active');
+    }
+</script>
+{% endblock %}
