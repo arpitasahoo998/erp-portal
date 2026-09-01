@@ -193,5 +193,36 @@
         </div>
         <button type="submit" class="login-btn">Login</button>
     </form>
+    <div class="demo-login-box">
+    <h4>🚀 Demo Access</h4>
+
+    <p>Want to explore the application?</p>
+
+    <div class="demo-credentials">
+        <div>
+            <strong>Username:</strong>
+            <span>admin</span>
+        </div>
+
+        <div>
+            <strong>Password:</strong>
+            <span>admin123</span>
+        </div>
+    </div>
+
+    <button type="button" class="demo-login-btn" onclick="loginAsDemo()">
+        Login as Demo Admin
+    </button>
+</div>
+
+<script>
+function loginAsDemo() {
+    document.querySelector('input[name="username"]').value = 'admin';
+    document.querySelector('input[name="password"]').value = 'admin123';
+
+    // Submit the existing login form
+    document.querySelector('form').submit();
+}
+</script>
 </div>
 {% endblock %}
