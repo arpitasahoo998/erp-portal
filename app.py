@@ -1417,7 +1417,7 @@ def initialize_database():
     with app.app_context():
         db.create_all()
 
-        # Create default admin if it does not exist
+        # Create or update default superadmin
         admin = User.query.filter_by(username='admin').first()
 
         if not admin:
@@ -1427,7 +1427,12 @@ def initialize_database():
                 role='superadmin'
             )
             db.session.add(admin)
-            db.session.commit()
+        else:
+            # Make sure existing admin has full access
+            admin.role = 'superadmin'
+            admin.password_hash = generate_password_hash('admin123')
+
+        db.session.commit()
 
 
 # Initialize database when the application starts
