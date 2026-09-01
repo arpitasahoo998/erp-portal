@@ -1932,3 +1932,112 @@ textarea.form-control {
 .demo-login-btn:hover {
     opacity: 0.9;
 }
+
+/* ==========================================
+   CLEAN PORTFOLIO DEMO LOGIN
+========================================== */
+
+.demo-login-page {
+    min-height: 75vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+}
+
+.demo-login-card {
+    width: 100%;
+    max-width: 480px;
+    text-align: center;
+    padding: 45px 40px;
+    border-radius: 20px;
+    background: #ffffff;
+    box-shadow: 0 15px 45px rgba(0, 0, 0, 0.12);
+}
+
+.demo-icon {
+    width: 75px;
+    height: 75px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: #f3f4f6;
+    font-size: 38px;
+}
+
+.demo-login-card h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.demo-subtitle {
+    margin: 8px 0 30px;
+    color: #6b7280;
+    font-size: 15px;
+}
+
+.demo-info {
+    padding: 22px;
+    margin-bottom: 22px;
+    border-radius: 14px;
+    background: #f8f9fa;
+}
+
+.demo-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    margin-bottom: 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: #e8f5e9;
+    color: #218838;
+}
+
+.demo-info h3 {
+    margin: 5px 0 8px;
+    font-size: 19px;
+}
+
+.demo-info p {
+    margin: 0;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.demo-enter-btn {
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 700;
+    background: #212529;
+    color: #ffffff;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.demo-enter-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.demo-note {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.demo-note strong {
+    color: #6b7280;
+    font-size: 13px;
+}
