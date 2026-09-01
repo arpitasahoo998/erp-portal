@@ -177,40 +177,80 @@
 {% endblock %}
 
 {% block content %}
-<div class="login-card">
-    <div class="brand-icon">🏪</div>
-    <h2>Welcome To Spice Bites</h2>
-    <p class="subtitle">Log in to Inventory & Billing</p>
-    <div class="demo-login-box">
-    <h4>🚀 Demo Access</h4>
 
-    <p>Want to explore the application?</p>
+<div class="demo-login-page">
 
-    <div class="demo-credentials">
-        <div>
-            <strong>Username:</strong>
-            <span>admin</span>
+    <div class="demo-login-card">
+
+        <div class="demo-icon">🏪</div>
+
+        <h1>Spice Bites</h1>
+
+        <p class="demo-subtitle">
+            Inventory & Billing Management System
+        </p>
+
+        <div class="demo-info">
+            <div class="demo-badge">LIVE DEMO</div>
+
+            <h3>Explore the ERP Portal</h3>
+
+            <p>
+                Experience inventory management, billing,
+                payments, customers, branches and more.
+            </p>
         </div>
 
-        <div>
-            <strong>Password:</strong>
-            <span>********</span>
+        <button
+            type="button"
+            class="demo-enter-btn"
+            onclick="loginAsDemo()"
+        >
+            🚀 Enter Demo
+        </button>
+
+        <div class="demo-note">
+            <span>Demo account</span>
+            <strong>Admin / Superadmin Access</strong>
         </div>
+
     </div>
 
-    <button type="button" class="demo-login-btn" onclick="loginAsDemo()">
-        Login as Demo Admin
-    </button>
 </div>
+
+
+<!-- Hidden login form -->
+<form method="POST" id="demoLoginForm" style="display:none;">
+
+    <input 
+        type="text"
+        id="username"
+        name="username"
+        value="admin"
+    >
+
+    <input
+        type="password"
+        id="password"
+        name="password"
+        value="admin123"
+    >
+
+</form>
+
 
 <script>
 function loginAsDemo() {
-    document.querySelector('input[name="username"]').value = 'admin';
-    document.querySelector('input[name="password"]').value = 'admin123';
 
-    // Submit the existing login form
-    document.querySelector('form').submit();
+    const form = document.getElementById('demoLoginForm');
+
+    if (!form) {
+        console.error('Demo login form not found');
+        return;
+    }
+
+    form.submit();
 }
 </script>
-</div>
+
 {% endblock %}
