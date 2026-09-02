@@ -74,7 +74,7 @@
                     <span class="icon">🤝</span> Regular Customers
                 </a>
             </div>
-            {% if current_user.permissions == '*' or 'inventory' in current_user.permissions.lower() %}
+            {% if current_user.role == 'superadmin' or current_user.permissions == '*' or 'inventory' in current_user.permissions.lower() %}
             <div class="nav-section">
                 <div class="nav-section-title">Inventory</div>
                 <a href="{{ url_for('inventory') }}" class="nav-link {{ 'active' if request.endpoint == 'inventory' }}">
@@ -91,7 +91,7 @@
             </div>
             {% endif %}
 
-            {% if current_user.permissions == '*' or 'billing' in current_user.permissions.lower() %}
+            {% if current_user.role == 'superadmin' or current_user.permissions == '*' or 'billing' in current_user.permissions.lower() %}
             <div class="nav-section">
                 <div class="nav-section-title">Billing</div>
                 <a href="{{ url_for('create_bill') }}"
@@ -105,7 +105,7 @@
             </div>
             {% endif %}
 
-            {% if current_user.permissions == '*' or 'finance' in current_user.permissions.lower() %}
+            {% if current_user.role == 'superadmin' or current_user.permissions == '*' or 'finance' in current_user.permissions.lower() %}
             <div class="nav-section">
                 <div class="nav-section-title">Finance</div>
                 <a href="{{ url_for('payments') }}" class="nav-link {{ 'active' if request.endpoint == 'payments' }}">
